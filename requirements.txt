@@ -1,0 +1,11 @@
+pandas
+numpy
+altair
+scipy
+streamlit
+yfinance
+plotly
+statsmodels
+seaborn
+streamlit-aggrid
+
