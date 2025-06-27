@@ -1,11 +1,11 @@
 pandas
-numpy==1.26.4
+numpy
 altair
-scipy==1.11.4
+scipy
 streamlit
 yfinance
 plotly
-statsmodels==0.13.5
+statsmodels
 seaborn
 streamlit-aggrid
 
