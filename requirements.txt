@@ -5,8 +5,6 @@ scipy
 streamlit
 yfinance
 plotly
-statsmodels
+statsmodels>=0.14.0 
 seaborn
 streamlit-aggrid
-
-
