@@ -586,27 +586,49 @@ def calc_periodic_metrics(fund_returns: pd.Series, bench_returns: pd.Series, ris
     max_dd_fund = (cum_fund / cum_fund.cummax() - 1).min()
     cum_bench = (1 + bench_returns).cumprod()
     max_dd_bench = (cum_bench / cum_bench.cummax() - 1).min()
+    
+    
     # Win/Loss Ratio:
-    win_loss_fund = (fund_returns[fund_returns > 0].mean() / abs(fund_returns[fund_returns < 0].mean())) if (not fund_returns[fund_returns < 0].empty and fund_returns[fund_returns < 0].mean() != 0) else np.nan
-    win_loss_bench = (bench_returns[bench_returns > 0].mean() / abs(bench_returns[bench_returns < 0].mean())) if (not bench_returns[bench_returns < 0].empty and bench_returns[bench_returns < 0].mean() != 0) else np.nan
-    # Up Capture:
-    up_bench = bench_returns[bench_returns > 0]
-    up_fund = fund_returns[fund_returns.index.isin(up_bench.index)]
+    num_fund_wins   = (fund_returns > 0).sum()
+    num_fund_losses = (fund_returns < 0).sum()
+    win_loss_fund = (
+        num_fund_wins / num_fund_losses
+        if num_fund_losses > 0
+        else np.nan
+    )
+
+    num_bench_wins   = (bench_returns > 0).sum()
+    num_bench_losses = (bench_returns < 0).sum()
+    win_loss_bench = (
+        num_bench_wins / num_bench_losses
+        if num_bench_losses > 0
+        else np.nan
+    )
+    
+    # Up Capture (cumulative)
+    up_bench = bench_returns[ bench_returns > 0 ]
+    up_fund  = fund_returns[ fund_returns.index.isin(up_bench.index) ]
+
     if not up_bench.empty:
-        geo_up_bench = np.exp(np.log1p(up_bench).mean()) - 1
-        geo_up_fund  = np.exp(np.log1p(up_fund).mean()) - 1
-        up_capture = (geo_up_fund / geo_up_bench) if geo_up_bench != 0 else np.nan
+        cum_up_bench = (1 + up_bench).prod() - 1
+        cum_up_fund  = (1 + up_fund ).prod() - 1
+        up_capture   = (cum_up_fund / cum_up_bench) if cum_up_bench != 0 else np.nan
     else:
         up_capture = np.nan
-    # Down Capture:
-    down_bench = bench_returns[bench_returns < 0]
-    down_fund = fund_returns[fund_returns.index.isin(down_bench.index)]
+
+    # Down Capture (cumulative)
+    down_bench = bench_returns[ bench_returns < 0 ]
+    down_fund  = fund_returns[ fund_returns.index.isin(down_bench.index) ]
+
     if not down_bench.empty:
-        geo_down_bench = np.exp(np.log1p(down_bench).mean()) - 1
-        geo_down_fund  = np.exp(np.log1p(down_fund).mean()) - 1
-        down_capture = (geo_down_fund / geo_down_bench) if geo_down_bench != 0 else np.nan
+        cum_dn_bench  = (1 + down_bench).prod() - 1
+        cum_dn_fund   = (1 + down_fund ).prod() - 1
+        down_capture  = (cum_dn_fund / cum_dn_bench) if cum_dn_bench != 0 else np.nan
     else:
         down_capture = np.nan
+
+        
+        
     # Sharpe Ratios:
     sharpe_fund = (ann_return_fund - ann_risk_free) / ann_std_fund if ann_std_fund > 0 else np.nan
     sharpe_bench = (ann_return_bench - ann_risk_free) / ann_std_bench if ann_std_bench > 0 else np.nan
