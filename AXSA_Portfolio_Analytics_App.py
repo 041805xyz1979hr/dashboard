@@ -205,7 +205,7 @@ def plot_drawdown_of_assets(asset_data: List[pd.DataFrame], asset_names: List[st
             st.warning("Asset data is empty. Drawdown chart cannot be displayed.")
             return
         # Reindex to common_index
-        total_returns = single_asset.set_index('time')['total_return'].reindex(common_index, method='ffill')
+        total_returns = single_asset.set_index('time')['total_return'].reindex(common_index)
         cumret = (1 + total_returns).cumprod()
         runmax = cumret.cummax()
         drawdown = (cumret / runmax) - 1
@@ -236,7 +236,7 @@ def plot_drawdown_of_assets(asset_data: List[pd.DataFrame], asset_names: List[st
             st.warning(f"Asset data for {asset_names[i]} is empty. Skipping in drawdown plot.")
             continue
         # Reindex to common_index to ensure alignment
-        total_returns = df.set_index('time')['total_return'].reindex(common_index, method='ffill')
+        total_returns = df.set_index('time')['total_return'].reindex(common_index)
         if total_returns.isna().all():
             st.warning(f"No valid total_return data for {asset_names[i]} after alignment. Skipping.")
             continue
@@ -838,7 +838,7 @@ def display_individual_asset_periodic_metrics(asset_returns_dict: Dict[str, pd.S
     groups = {}
     common_index = risk_free_series.index
     for asset, returns_series in asset_returns_dict.items():
-        returns_series = returns_series.reindex(common_index, method='ffill')
+        returns_series = returns_series.reindex(common_index)
         bench_returns = asset_benchmarks_dict.get(asset, pd.Series(0.0, index=common_index))
         bench_returns = bench_returns.reindex(common_index, method='ffill')
         if bench_returns.empty or bench_returns.isna().all():
@@ -982,27 +982,42 @@ def display_individual_asset_periodic_metrics(asset_returns_dict: Dict[str, pd.S
 def display_full_periodic_table(fund_returns: pd.Series, bench_returns: pd.Series, risk_free_series: pd.Series) -> None:
     st.subheader("Periodic Annualized Stats: 1Y, 3Y, 5Y, ITD")
 
-    
-    
+
     def slice_and_calc(period: str) -> Dict[str, float]:
         end_date = fund_returns.index.max()
+
+        # 1) Compute start_date for each period
         if period == "ITD":
-            # Use the full series from the start
             start_date = fund_returns.index.min()
-            fund_slice = fund_returns[start_date:end_date]
-            bench_slice = bench_returns[start_date:end_date]
-            risk_slice = risk_free_series[start_date:end_date]
+        elif period == "1Y":
+            start_date = end_date - pd.DateOffset(years=1)
+        elif period == "3Y":
+            start_date = end_date - pd.DateOffset(years=3)
+        elif period == "5Y":
+            start_date = end_date - pd.DateOffset(years=5)
         else:
-            # Convert period to months (1Y = 12, 3Y = 36, 5Y = 60)
-            months = {"1Y": 12, "3Y": 36, "5Y": 60}[period]
-            start_date = pd.Timestamp(end_date.year - (months // 12) + 1, 1, 1) if period == "1Y" else end_date - pd.DateOffset(months=months)
-            # Ensure start_date doesn't go before the data begins
-            start_date = max(start_date, fund_returns.index.min())
-            fund_slice = fund_returns[start_date:end_date]
-            bench_slice = bench_returns[start_date:end_date]
-            risk_slice = risk_free_series[start_date:end_date]
-        
+            # fallback: treat as ITD
+            start_date = fund_returns.index.min()
+
+        # never go before inception
+        start_date = max(start_date, fund_returns.index.min())
+
+        # 2) Exclusive left‐bound, inclusive right‐bound
+        mask = (fund_returns.index  > start_date) & (fund_returns.index  <= end_date)
+        fund_slice  = fund_returns.loc[mask]
+        bench_slice = bench_returns.loc[mask]
+        risk_slice  = risk_free_series.loc[mask]
+
+        # 3) Align all three to the same dates
+        common = fund_slice.index
+        common = common.intersection(bench_slice.index).intersection(risk_slice.index)
+        fund_slice  = fund_slice.loc[common]
+        bench_slice = bench_slice.loc[common]
+        risk_slice  = risk_slice.loc[common]
+
+        # 4) Compute metrics on the aligned slices
         return calc_periodic_metrics(fund_slice, bench_slice, risk_slice)
+
 
     one_year = slice_and_calc("1Y")
     three_year = slice_and_calc("3Y")
