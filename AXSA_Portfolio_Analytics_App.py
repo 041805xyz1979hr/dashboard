@@ -2498,21 +2498,7 @@ def main():
                             )
                             
 
-                        st.subheader(f"{asset} - Drawdown Chart")
-                        if asset in asset_returns_dict:
-                            asset_cumret = (1 + asset_returns_dict[asset].reindex(common_index, method='ffill').fillna(0.0)).cumprod()
-                            asset_drawdown = (asset_cumret / asset_cumret.cummax()) - 1
-                            bench_cumret = (1 + asset_benchmarks_dict[asset].reindex(common_index, method='ffill').fillna(0.0)).cumprod()
-                            bench_drawdown = (bench_cumret / bench_cumret.cummax()) - 1
-                            drawdown_df = pd.DataFrame({
-                                'time': np.tile(common_index, 2),
-                                'Drawdown': pd.concat([asset_drawdown, bench_drawdown]).values,
-                                'Label': [asset, 'Benchmark'] * len(common_index)
-                            })
-                            chart = alt.Chart(drawdown_df).mark_line().encode(
-                                x='time:T', y='Drawdown:Q', color='Label:N', tooltip=['time:T', 'Label:N', 'Drawdown:Q']
-                            ).interactive()
-                            st.altair_chart(chart, use_container_width=True)
+                        
 
                         # Separate Expander for Dividend Decomposition
                         st.subheader(f"{asset} - Dividend Decomposition")
